@@ -66,10 +66,10 @@ def api_revise():
 
 # --- Vercel handler (serverless entrypoint) ---
 # pip install vercel-python-wsgi
-import vercel_wsgi  # noqa: E402
+from vercel_wsgi import handle  # noqa: E402
 
 def handler(event, context):
     """Vercel Serverless Function entrypoint."""
-    return vercel_wsgi.handle(app, event, context)
+    return handle(app, event, context)
 
 # Do NOT call app.run() on Vercel
