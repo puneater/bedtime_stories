@@ -1,22 +1,32 @@
 import os
-from urllib.parse import urljoin
-from flask import Flask, request, jsonify, send_from_directory
+import sys
+import pathlib
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from story_engine import (
+
+# Make /backend importable after moving this file under /api
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "backend"
+sys.path.append(str(ROOT))
+sys.path.append(str(BACKEND_DIR))
+
+from story_engine import (  # noqa: E402
     CATEGORIES_PUBLIC,
     generate_story_api,
     revise_story_api,
 )
-from tts_engine import synthesize_to_wav, AUDIO_DIR, tts_available
+from tts_engine import (    # noqa: E402
+    tts_available,
+    synthesize_to_data_url,  # returns data:audio/mpeg;base64,...
+)
 
 load_dotenv()
 
-app = Flask(__name__, static_folder="static", static_url_path="../static")
-# Enable CORS for both /api and /static so audio can be fetched cross-origin in prod if needed
+app = Flask(__name__)
+# If frontend runs on a different origin in dev, keep CORS open or pin FRONTEND_ORIGIN
 CORS(app, resources={
-    r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "*")},
-    r"/static/*": {"origins": os.getenv("FRONTEND_ORIGIN", "*")},
+    r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "*")}
 })
 
 @app.get("/api/health")
@@ -34,38 +44,32 @@ def api_generate():
     prompt = (data.get("prompt") or "").strip()
     category = (data.get("category") or None)
 
-    try:
-        story, chosen_category = generate_story_api(
-            user_request=prompt if prompt else "Tell me a fun and imaginative story for a child.",
-            age_bracket=age_bracket,
-            category=category,
-        )
-        rel_audio_url = synthesize_to_wav(story)  # e.g. "/static/audio/xyz.mp3" or None
-        abs_audio_url = urljoin(request.host_url, rel_audio_url.lstrip('/')) if rel_audio_url else None
-        return jsonify({"story": story, "category": chosen_category, "audioUrl": abs_audio_url})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    story, chosen_category = generate_story_api(
+        user_request=prompt if prompt else "Tell me a fun and imaginative story for a child.",
+        age_bracket=age_bracket,
+        category=category,
+    )
+    audio_data_url = synthesize_to_data_url(story)  # data:audio/mpeg;base64,...
+    return jsonify({"story": story, "category": chosen_category, "audioUrl": audio_data_url})
 
 @app.post("/api/revise")
 def api_revise():
     data = request.get_json(force=True) or {}
     story = data.get("story")
     feedback = (data.get("feedback") or "").strip()
-
     if not story:
         return jsonify({"error": "Missing 'story' in request."}), 400
-    try:
-        revised = revise_story_api(story, user_feedback=feedback)
-        rel_audio_url = synthesize_to_wav(revised)
-        abs_audio_url = urljoin(request.host_url, rel_audio_url.lstrip('/')) if rel_audio_url else None
-        return jsonify({"story": revised, "audioUrl": abs_audio_url})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-# Serve generated audio files
-@app.get("/static/audio/<path:filename>")
-def serve_audio(filename):
-    return send_from_directory(AUDIO_DIR, filename)
+    revised = revise_story_api(story, user_feedback=feedback)
+    audio_data_url = synthesize_to_data_url(revised)
+    return jsonify({"story": revised, "audioUrl": audio_data_url})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)
+# --- Vercel handler (serverless entrypoint) ---
+# pip install vercel-python-wsgi
+import vercel_wsgi  # noqa: E402
+
+def handler(event, context):
+    """Vercel Serverless Function entrypoint."""
+    return vercel_wsgi.handle(app, event, context)
+
+# Do NOT call app.run() on Vercel

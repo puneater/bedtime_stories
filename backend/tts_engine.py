@@ -1,12 +1,9 @@
 import os
-import time
-from pathlib import Path
+import base64
+from io import BytesIO
 from typing import Optional
 
-AUDIO_DIR = Path(__file__).resolve().parent / "static" / "audio"
-AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-
-def _gtts_available() -> bool:
+def tts_available() -> bool:
     if os.getenv("ENABLE_TTS", "1") == "0":
         return False
     try:
@@ -15,28 +12,22 @@ def _gtts_available() -> bool:
     except Exception:
         return False
 
-def tts_available() -> bool:
-    """Return True iff TTS can run (gTTS present and enabled)."""
-    return _gtts_available()
+def _synthesize_mp3_bytes(text: str) -> bytes:
+    """Use gTTS to synthesize speech to bytes (MP3)."""
+    from gtts import gTTS
+    buf = BytesIO()
+    gTTS(text=text, lang="en").write_to_fp(buf)
+    return buf.getvalue()
 
-def synthesize_to_wav(text: str, voice: Optional[str] = None) -> Optional[str]:
+def synthesize_to_data_url(text: str, voice: Optional[str] = None) -> Optional[str]:
     """
-    Generate TTS with gTTS and return a relative URL to the audio file.
-
-    Note: returns an MP3 file (kept function name for API compatibility).
-    Example: "/static/audio/story_1712345678901.mp3"
+    Return a data URL (data:audio/mpeg;base64,...) for the synthesized audio.
+    Serverless-safe: no filesystem writes, works on Vercel.
     """
     if os.getenv("ENABLE_TTS", "1") == "0":
         return None
-    if not _gtts_available():
+    if not tts_available():
         return None
-
-    from gtts import gTTS
-
-    ts = int(time.time() * 1000)
-    fname = f"story_{ts}.mp3"
-    out_path = AUDIO_DIR / fname
-
-    # gTTS is online; default language English
-    gTTS(text=text, lang="en").save(str(out_path))
-    return f"/static/audio/{fname}"
+    audio_bytes = _synthesize_mp3_bytes(text)
+    b64 = base64.b64encode(audio_bytes).decode("ascii")
+    return f"data:audio/mpeg;base64,{b64}"
