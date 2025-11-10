@@ -12,7 +12,7 @@ from tts_engine import synthesize_to_wav, AUDIO_DIR, tts_available
 
 load_dotenv()
 
-app = Flask(__name__, static_folder="static", static_url_path="/static")
+app = Flask(__name__, static_folder="static", static_url_path="../static")
 # Enable CORS for both /api and /static so audio can be fetched cross-origin in prod if needed
 CORS(app, resources={
     r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "*")},
