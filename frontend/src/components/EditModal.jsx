@@ -10,6 +10,7 @@ export default function EditModal({ open, onClose, onSubmit }) {
   const handleSubmit = () => {
     onSubmit(text)
     setText('')
+    onClose?.()
   }
 
   return (

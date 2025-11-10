@@ -1,123 +1,88 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Card, Stack, Typography, IconButton, Button } from '@mui/material'
+import { useEffect, useRef, useState } from 'react'
+import { Card, Stack, Typography, IconButton } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PauseIcon from '@mui/icons-material/Pause'
 import ReplayIcon from '@mui/icons-material/Replay'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import EditNoteIcon from '@mui/icons-material/EditNote'
-import { useSpeech } from '../hooks/useSpeech'   // <-- new hook below
 
-// Split story into manageable utterances
-function chunkText(text, maxLen = 220) {
-  const sentences = (text || '').split(/(?<=[.!?])\s+/)
-  const chunks = []
-  let buf = ''
-  for (const s of sentences) {
-    if ((buf + ' ' + s).trim().length > maxLen) {
-      if (buf) chunks.push(buf.trim())
-      buf = s
-    } else {
-      buf = (buf + ' ' + s).trim()
-    }
-  }
-  if (buf) chunks.push(buf.trim())
-  return chunks
-}
-
-export default function Player({ story, onGenerate, onEdit }) {
-  const { supported, voices, speak, pause, resume, cancel, speaking, paused } = useSpeech()
+export default function Player({ audioUrl, onEdit, controlsDisabled }) {
+  const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [index, setIndex] = useState(0)
-  const chunks = useMemo(() => chunkText(story, 220), [story])
-  const playingRef = useRef(false)
+  const [bars, setBars] = useState(() => new Array(12).fill(6))
 
-  // Stop speech on unmount or when story changes
-  useEffect(() => () => { cancel(); setIsPlaying(false); setIndex(0) }, [cancel, story])
-
-  // Autoplay current chunk when toggled on
+  // UI-only equalizer animation
   useEffect(() => {
-    if (!supported || !isPlaying || !chunks.length) return
-    const text = chunks[index]
-
-    // pick a friendly English voice if available
-    const preferred =
-      voices.find(v => /english/i.test(v.lang) && /female|samantha|zira|google uk english female/i.test(v.name)) ||
-      voices[0] || null
-
-    playingRef.current = true
-    speak({
-      text,
-      voice: preferred || undefined,
-      rate: 1,
-      pitch: 1,
-      onEnd: () => {
-        if (!playingRef.current) return
-        if (index < chunks.length - 1) {
-          setIndex(i => i + 1)
-        } else {
-          setIsPlaying(false)
-          setIndex(0)
-        }
-      }
-    })
-  }, [supported, isPlaying, index, chunks, voices, speak])
-
-  const handlePlay = () => {
-    if (!story || !supported) return
-    if (paused) {
-      resume()
-      setIsPlaying(true)
-      return
+    let raf
+    const tick = () => {
+      setBars(prev =>
+        prev.map((h, i) => {
+          const variance = (Math.sin((Date.now() / 120) + i) + 1) * 0.5
+          const target = 8 + Math.round(variance * 28)
+          return Math.round(h + (target - h) * 0.25)
+        })
+      )
+      raf = requestAnimationFrame(tick)
     }
-    setIsPlaying(true)
-  }
+    if (isPlaying) raf = requestAnimationFrame(tick)
+    return () => { if (raf) cancelAnimationFrame(raf) }
+  }, [isPlaying])
 
-  const handlePause = () => {
-    pause()
+  useEffect(() => { // reset when new audio arrives
     setIsPlaying(false)
-  }
+    const a = audioRef.current
+    if (a) { a.pause(); a.currentTime = 0 }
+  }, [audioUrl])
 
+  const handlePlayPause = () => {
+    const a = audioRef.current
+    if (!a) return
+    if (isPlaying) { a.pause(); setIsPlaying(false) }
+    else { a.play(); setIsPlaying(true) }
+  }
   const handleReplay = () => {
-    playingRef.current = false
-    cancel()
-    setIndex(0)
+    const a = audioRef.current
+    if (!a) return
+    a.currentTime = 0
+    a.play()
     setIsPlaying(true)
   }
 
   return (
-    <Card sx={{ p: 3, textAlign: 'center' }}>
-      <Stack spacing={2} alignItems="center">
+    <Card sx={{ p: 4, textAlign: 'center' }} className="panel story-panel enter-bottom">
+      <Stack spacing={2} alignItems="center" className="stack-fill">
         <Typography variant="h5">Story Player</Typography>
 
-        <div className="equalizer" aria-hidden={!isPlaying} style={{ opacity: isPlaying ? 1 : 0.25 }}>
-          <div className="bar"/><div className="bar"/><div className="bar"/><div className="bar"/><div className="bar"/>
+        {/* Equalizer – UI-only animation; runs only when isPlaying === true */}
+        <div className="equalizer" style={{ opacity: isPlaying ? 1 : 0.25 }}>
+          {bars.map((h, i) => (<div key={i} className="bar" style={{ height: h }} />))}
         </div>
 
-        {!supported && (
-          <Typography variant="body2" color="warning.main">
-            Your browser doesn’t support speech playback. Try Chrome, Edge, or Safari.
-          </Typography>
-        )}
+        <audio ref={audioRef} src={audioUrl || ''} preload="auto" onEnded={() => setIsPlaying(false)} />
 
         <Stack direction="row" spacing={2} justifyContent="center" alignItems="center">
-          <IconButton color="primary" size="large" onClick={handlePlay} aria-label="play" disabled={!supported}>
-            <PlayArrowIcon fontSize="inherit" />
+          <IconButton color="primary" size="large" onClick={handlePlayPause} aria-label="playpause" disabled={!audioUrl || controlsDisabled}>
+            {isPlaying ? <PauseIcon fontSize="inherit" /> : <PlayArrowIcon fontSize="inherit" />}
           </IconButton>
-          <IconButton color="primary" size="large" onClick={handlePause} aria-label="pause" disabled={!supported}>
-            <PauseIcon fontSize="inherit" />
-          </IconButton>
-          <IconButton color="primary" size="large" onClick={handleReplay} aria-label="replay" disabled={!supported}>
+          <IconButton color="primary" size="large" onClick={handleReplay} aria-label="replay" disabled={!audioUrl || controlsDisabled}>
             <ReplayIcon fontSize="inherit" />
           </IconButton>
         </Stack>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
-          <Button startIcon={<AutoAwesomeIcon />} variant="contained" onClick={onGenerate}>Generate</Button>
-          <Button startIcon={<EditNoteIcon />} variant="outlined" onClick={onEdit}>Edit</Button>
+          {/* Edit button only; Generate moved to the global switch */}
+          <button
+            className="btn btn-warning"
+            onClick={() => {
+              const a = audioRef.current
+              if (a && !a.paused) { a.pause(); setIsPlaying(false) }
+              onEdit && onEdit()
+            }}
+          >
+            Edit
+          </button>
         </Stack>
 
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
-          Voice playback powered by the Web Speech API.
+          Audio generated by gTTS.
         </Typography>
       </Stack>
     </Card>

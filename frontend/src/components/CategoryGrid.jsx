@@ -20,10 +20,11 @@ const ICONS = {
   'Boo!': <NightlightIcon className="big-icon" />
 }
 
-export default function CategoryGrid({ categories, onPickCategory, onSurprise, onPrompt }) {
+export default function CategoryGrid({ categories, onPickCategory, onSurprise, onPrompt, className }) {
+  const merged = `panel story-panel ${className || ''}`.trim()
   return (
-    <Card sx={{ p: 4 }}>
-      <Stack spacing={3}>
+    <Card sx={{ p: 4 }} className={merged}>
+      <Stack spacing={3} className="stack-fill">
         <Typography variant="h4" textAlign="center">What story do you want to hear?</Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
           <Button variant="contained" size="large" startIcon={<AutoAwesomeIcon />} onClick={onSurprise}>Surprise me</Button>
@@ -32,8 +33,16 @@ export default function CategoryGrid({ categories, onPickCategory, onSurprise, o
         <Grid container spacing={2}>
           {categories.map((c) => (
             <Grid item xs={6} sm={4} md={3} key={c}>
-              <Button fullWidth variant="contained" color="secondary" size="large" onClick={() => onPickCategory(c)}
-                      startIcon={ICONS[c] ?? <CategoryIcon className="big-icon" />}>{c}</Button>
+              <Button
+                fullWidth
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={() => onPickCategory(c)}
+                startIcon={ICONS[c] ?? <CategoryIcon className="big-icon" />}
+              >
+                {c}
+              </Button>
             </Grid>
           ))}
         </Grid>
