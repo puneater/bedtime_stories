@@ -1,3 +1,4 @@
+# api/app.py
 import os
 import sys
 import pathlib
@@ -5,18 +6,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Make /backend importable after moving this file under /api
+# Ensure imports resolve (backend modules)
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "backend"
-sys.path.append(str(ROOT))
-sys.path.append(str(BACKEND_DIR))
+if str(ROOT) not in sys.path: sys.path.append(str(ROOT))
+if str(BACKEND_DIR) not in sys.path: sys.path.append(str(BACKEND_DIR))
 
-from story_engine import (  # noqa: E402
+from story_engine import (  # type: ignore
     CATEGORIES_PUBLIC,
     generate_story_api,
     revise_story_api,
 )
-from tts_engine import (    # noqa: E402
+from tts_engine import (    # type: ignore
     tts_available,
     synthesize_to_data_url,  # returns data:audio/mpeg;base64,...
 )
@@ -24,10 +25,7 @@ from tts_engine import (    # noqa: E402
 load_dotenv()
 
 app = Flask(__name__)
-# If frontend runs on a different origin in dev, keep CORS open or pin FRONTEND_ORIGIN
-CORS(app, resources={
-    r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "*")}
-})
+CORS(app, resources={r"/api/*": {"origins": os.getenv("FRONTEND_ORIGIN", "*")}})
 
 @app.get("/api/health")
 def health():
@@ -64,12 +62,4 @@ def api_revise():
     audio_data_url = synthesize_to_data_url(revised)
     return jsonify({"story": revised, "audioUrl": audio_data_url})
 
-# --- Vercel handler (serverless entrypoint) ---
-# pip install vercel-python-wsgi
-from vercel_wsgi import handle  # noqa: E402
-
-def handler(event, context):
-    """Vercel Serverless Function entrypoint."""
-    return handle(app, event, context)
-
-# Do NOT call app.run() on Vercel
+# IMPORTANT: no app.run() on Vercel (serverless)
