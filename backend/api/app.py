@@ -5,12 +5,12 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 # Clean, package-based imports (no sys.path hacks)
-from backend.story_engine import (
+from story_engine import (
     CATEGORIES_PUBLIC,
     generate_story_api,
     revise_story_api,
 )
-from backend.tts_engine import (
+from tts_engine import (
     tts_available,
     synthesize_to_data_url,  # returns data:audio/mpeg;base64,...
 )
