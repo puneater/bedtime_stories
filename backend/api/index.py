@@ -9,7 +9,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+# load_dotenv()
 
 # ============ TTS Engine ============
 def tts_available() -> bool:

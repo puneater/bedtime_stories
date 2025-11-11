@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: bedtime-story-backend
+    env: python
+    plan: starter          # or 'free' / 'standard' / 'pro'
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k gthread -w 2 -t 120 -b 0.0.0.0:$PORT api.app:app
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false        # set the value in Render Dashboard
+      - key: FRONTEND_ORIGIN
+        value: https://your-frontend.vercel.app
+      - key: PYTHON_VERSION   # optional; or use .python-version
+        value: 3.12.5
