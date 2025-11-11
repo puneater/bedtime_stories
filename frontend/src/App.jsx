@@ -20,7 +20,7 @@ export default function App() {
   const [categories, setCategories] = useState([])
   const [story, setStory] = useState('')
   const [audioUrl, setAudioUrl] = useState(null)
-  const [categoryPicked, setCategoryPicked] = useState(null)
+  const [_categoryPicked, setCategoryPicked] = useState(null)
   const [promptOpen, setPromptOpen] = useState(false)
   const [promptText, setPromptText] = useState('')
   const [toast, setToast] = useState(null)
