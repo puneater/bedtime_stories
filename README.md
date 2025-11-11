@@ -3,7 +3,7 @@
 **Live App:** https://bedtime-stories-blue.vercel.app/  
 **Public APIs:** https://bedtime-stories-m8xq.onrender.com/
 
-This repo contains a bedtime‑story generator for children ages **5–10**. It uses a **Storyteller** (GPT‑3.5) and a hidden **Judge** pass to improve structure, tone, safety, and length. Audio playback uses backend **gTTS** returned as an inline data URL.
+This is submission to Hippocratic AI taek-home assignment. This repo contains a bedtime‑story generator for children ages **5–10**. It uses a **Storyteller** (GPT‑3.5) and a hidden **Judge** pass to improve structure, tone, safety, and length. Audio playback uses backend **gTTS** returned as an inline data URL.
 
 ---
 
