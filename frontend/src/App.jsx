@@ -6,12 +6,13 @@ import AgeGate from './components/AgeGate'
 import CategoryGrid from './components/CategoryGrid'
 import Player from './components/Player'
 import EditModal from './components/EditModal'
+import Header from './components/Header'   // ✅ re-add the header
 
 // 🔸 read backend base from env (set in .env / .env.production)
 const API_BASE = import.meta.env.VITE_API_BASE
 const api = axios.create({
   baseURL: API_BASE,         // e.g. https://your-backend.vercel.app
-  withCredentials: false     // not using cookies/auth
+  withCredentials: false
 })
 
 export default function App() {
@@ -19,7 +20,7 @@ export default function App() {
   const [categories, setCategories] = useState([])
   const [story, setStory] = useState('')
   const [audioUrl, setAudioUrl] = useState(null)
-  const [_categoryPicked, setCategoryPicked] = useState(null)
+  const [categoryPicked, setCategoryPicked] = useState(null)
   const [promptOpen, setPromptOpen] = useState(false)
   const [promptText, setPromptText] = useState('')
   const [toast, setToast] = useState(null)
@@ -29,9 +30,7 @@ export default function App() {
   const [controlsDisabled, setControlsDisabled] = useState(false)
 
   useEffect(() => {
-    api.get('/api/categories')
-      .then(r => setCategories(r.data.categories))
-      .catch(() => setCategories([]))
+    api.get('/api/categories').then(r => setCategories(r.data.categories)).catch(() => setCategories([]))
   }, [])
 
   const startGenerate = async ({ category = null, prompt = '' } = {}) => {
@@ -92,53 +91,63 @@ export default function App() {
   )
 
   return (
-    <Container className="container-max" style={{ padding: '32px 16px' }}>
-      <Row>
-        <Col>
-          {!ageBracket ? (
-            <AgeGate onPick={setAgeBracket} />
-          ) : (
-            <Stack spacing={3}>
-              {view === 'create' && (
-                <CategoryGrid
-                  className="panel story-panel enter-top"
-                  categories={categories}
-                  onPickCategory={(c) => startGenerate({ category: c })}
-                  onSurprise={() => startGenerate()}
-                  onPrompt={() => setPromptOpen(true)}
-                />
-              )}
+    <>
+      <Header /> {/* ✅ persistent, kid-friendly header */}
 
-              {view === 'play' && (
-                <Player
-                  audioUrl={audioUrl}
-                  onEdit={() => setEditOpen(true)}
-                  controlsDisabled={controlsDisabled}
-                />
-              )}
+      <Container className="container-max" style={{ padding: '32px 16px' }}>
+        <Row>
+          <Col>
+            {!ageBracket ? (
+              <AgeGate onPick={setAgeBracket} />
+            ) : (
+              <Stack spacing={3}>
+                {view === 'create' && (
+                  <CategoryGrid
+                    className="panel story-panel enter-top"
+                    categories={categories}
+                    onPickCategory={(c) => startGenerate({ category: c })}
+                    onSurprise={() => startGenerate()}
+                    onPrompt={() => setPromptOpen(true)}
+                  />
+                )}
 
-              <SwitchButton />
-            </Stack>
-          )}
-        </Col>
-      </Row>
+                {view === 'play' && (
+                  <Player
+                    audioUrl={audioUrl}
+                    onEdit={() => setEditOpen(true)}
+                    controlsDisabled={controlsDisabled}
+                  />
+                )}
 
-      <Dialog open={promptOpen} onClose={() => setPromptOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Tell me a little and I'll create it</DialogTitle>
-        <DialogContent>
-          <TextField fullWidth autoFocus placeholder="e.g., A brave kid astronaut and a sleepy alien" value={promptText} onChange={(e) => setPromptText(e.target.value)} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPromptOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => { setPromptOpen(false); startGenerate({ prompt: promptText })}}>Create</Button>
-        </DialogActions>
-      </Dialog>
+                <SwitchButton />
+              </Stack>
+            )}
+          </Col>
+        </Row>
 
-      <EditModal open={editOpen} onClose={() => setEditOpen(false)} onSubmit={applyEdit} />
+        <Dialog open={promptOpen} onClose={() => setPromptOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>Tell me a little and I'll create it</DialogTitle>
+          <DialogContent>
+            <TextField
+              fullWidth
+              autoFocus
+              placeholder="e.g., A brave kid astronaut and a sleepy alien"
+              value={promptText}
+              onChange={(e) => setPromptText(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPromptOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={() => { setPromptOpen(false); startGenerate({ prompt: promptText }) }}>Create</Button>
+          </DialogActions>
+        </Dialog>
 
-      <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)}>
-        {toast && <Alert severity={toast.type}>{toast.msg}</Alert>}
-      </Snackbar>
-    </Container>
+        <EditModal open={editOpen} onClose={() => setEditOpen(false)} onSubmit={applyEdit} />
+
+        <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)}>
+          {toast && <Alert severity={toast.type}>{toast.msg}</Alert>}
+        </Snackbar>
+      </Container>
+    </>
   )
 }
