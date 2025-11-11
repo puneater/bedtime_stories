@@ -9,7 +9,7 @@ import EditModal from './components/EditModal'
 import Header from './components/Header'   // ✅ re-add the header
 
 // 🔸 read backend base from env (set in .env / .env.production)
-const API_BASE = import.meta.env.VITE_API_BASE
+const API_BASE = import.meta.env.VITE_API_TARGET
 const api = axios.create({
   baseURL: API_BASE,         // e.g. https://your-backend.vercel.app
   withCredentials: false
