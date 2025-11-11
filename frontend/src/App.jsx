@@ -6,7 +6,13 @@ import AgeGate from './components/AgeGate'
 import CategoryGrid from './components/CategoryGrid'
 import Player from './components/Player'
 import EditModal from './components/EditModal'
-import Header from './components/Header'   // <-- add this import
+
+// 🔸 read backend base from env (set in .env / .env.production)
+const API_BASE = import.meta.env.VITE_API_BASE
+const api = axios.create({
+  baseURL: API_BASE,         // e.g. https://your-backend.vercel.app
+  withCredentials: false     // not using cookies/auth
+})
 
 export default function App() {
   const [ageBracket, setAgeBracket] = useState(null)
@@ -23,14 +29,16 @@ export default function App() {
   const [controlsDisabled, setControlsDisabled] = useState(false)
 
   useEffect(() => {
-    axios.get('/api/categories').then(r => setCategories(r.data.categories)).catch(() => setCategories([]))
+    api.get('/api/categories')
+      .then(r => setCategories(r.data.categories))
+      .catch(() => setCategories([]))
   }, [])
 
   const startGenerate = async ({ category = null, prompt = '' } = {}) => {
     try {
       setIsGenerating(true)
       setControlsDisabled(true)
-      const { data } = await axios.post('/api/generate', {
+      const { data } = await api.post('/api/generate', {
         ageBracket: ageBracket || 'middle',
         category,
         prompt
@@ -51,7 +59,7 @@ export default function App() {
   const applyEdit = async (feedback) => {
     try {
       setControlsDisabled(true)
-      const { data } = await axios.post('/api/revise', { story, feedback })
+      const { data } = await api.post('/api/revise', { story, feedback })
       setStory(data.story)
       setAudioUrl(data.audioUrl || null)
       setToast({ type: 'success', msg: 'Story updated' })
@@ -84,57 +92,53 @@ export default function App() {
   )
 
   return (
-    <>
-      <Header /> {/* <-- persistent header on every page */}
+    <Container className="container-max" style={{ padding: '32px 16px' }}>
+      <Row>
+        <Col>
+          {!ageBracket ? (
+            <AgeGate onPick={setAgeBracket} />
+          ) : (
+            <Stack spacing={3}>
+              {view === 'create' && (
+                <CategoryGrid
+                  className="panel story-panel enter-top"
+                  categories={categories}
+                  onPickCategory={(c) => startGenerate({ category: c })}
+                  onSurprise={() => startGenerate()}
+                  onPrompt={() => setPromptOpen(true)}
+                />
+              )}
 
-      <Container className="container-max" style={{ padding: '32px 16px' }}>
-        <Row>
-          <Col>
-            {!ageBracket ? (
-              <AgeGate onPick={setAgeBracket} />
-            ) : (
-              <Stack spacing={3}>
-                {view === 'create' && (
-                  <CategoryGrid
-                    className="panel enter-top"
-                    categories={categories}
-                    onPickCategory={(c) => startGenerate({ category: c })}
-                    onSurprise={() => startGenerate()}
-                    onPrompt={() => setPromptOpen(true)}
-                  />
-                )}
+              {view === 'play' && (
+                <Player
+                  audioUrl={audioUrl}
+                  onEdit={() => setEditOpen(true)}
+                  controlsDisabled={controlsDisabled}
+                />
+              )}
 
-                {view === 'play' && (
-                  <Player
-                    audioUrl={audioUrl}
-                    onEdit={() => setEditOpen(true)}
-                    controlsDisabled={controlsDisabled}
-                  />
-                )}
+              <SwitchButton />
+            </Stack>
+          )}
+        </Col>
+      </Row>
 
-                <SwitchButton />
-              </Stack>
-            )}
-          </Col>
-        </Row>
+      <Dialog open={promptOpen} onClose={() => setPromptOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Tell me a little and I'll create it</DialogTitle>
+        <DialogContent>
+          <TextField fullWidth autoFocus placeholder="e.g., A brave kid astronaut and a sleepy alien" value={promptText} onChange={(e) => setPromptText(e.target.value)} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPromptOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={() => { setPromptOpen(false); startGenerate({ prompt: promptText })}}>Create</Button>
+        </DialogActions>
+      </Dialog>
 
-        <Dialog open={promptOpen} onClose={() => setPromptOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle>Tell me a little and I'll create it</DialogTitle>
-          <DialogContent>
-            <TextField fullWidth autoFocus placeholder="e.g., A brave kid astronaut and a sleepy alien" value={promptText} onChange={(e) => setPromptText(e.target.value)} />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setPromptOpen(false)}>Cancel</Button>
-            <Button variant="contained" onClick={() => { setPromptOpen(false); startGenerate({ prompt: promptText })}}>Create</Button>
-          </DialogActions>
-        </Dialog>
+      <EditModal open={editOpen} onClose={() => setEditOpen(false)} onSubmit={applyEdit} />
 
-        <EditModal open={editOpen} onClose={() => setEditOpen(false)} onSubmit={applyEdit} />
-
-        <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)}>
-          {toast && <Alert severity={toast.type}>{toast.msg}</Alert>}
-        </Snackbar>
-      </Container>
-    </>
+      <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)}>
+        {toast && <Alert severity={toast.type}>{toast.msg}</Alert>}
+      </Snackbar>
+    </Container>
   )
 }
