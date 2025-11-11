@@ -1,2 +1,7 @@
-# app/index.py
-from .app import app  # re-export your Flask app for Vercel detection
+import sys
+import os
+
+# Add parent directory to path so imports work
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from api.app import app
